@@ -6,19 +6,24 @@ set -e
 ENV_FILE=".env"
 CONFIG_FILE="config.yaml"
 
-# Function to sanitize and extract keys with effortless grace.
+# Function to sanitize and extract keys, ensuring they are strictly comma-separated.
 extract_keys() {
     local cleaned
+    # Strip potential 'VAR=' prefixes and quotation marks
     cleaned=$(echo "$1" | sed 's/^[^=]*=//; s/["'\'']//g')
-    echo "$cleaned" | tr ',; ' ' ' | xargs
+    # Convert spaces and semicolons to commas, squeeze multiple commas, and trim the edges
+    echo "$cleaned" | tr ' ;' ',' | tr -s ',' | sed 's/^,//; s/,$//'
 }
 
-echo "🎩 Good day. Let us attend to your affairs with due diligence."
+echo "🎩 Good morning. Let us attend to your affairs with due diligence."
 
 # 1. Procuring the environment variables.
 if [ -f "$ENV_FILE" ]; then
     echo "📂 Found an existing .env file. Using it for our proceedings."
-    export $(grep -v '^#' "$ENV_FILE" | xargs)
+    # A much more elegant way to source variables without breaking quotes or tripping over hyphens.
+    set -a
+    source "$ENV_FILE"
+    set +a
 fi
 
 if [ -z "$GOOGLE_API_KEYS" ]; then
@@ -78,17 +83,21 @@ EOF
 echo "📝 Commissioning the $CONFIG_FILE..."
 
 # 4. Assembling the model list.
-read -ra RAW_KEYS <<< "$GOOGLE_API_KEYS"
+# We set the Internal Field Separator (IFS) to a comma to properly read the array.
+IFS=',' read -ra RAW_KEYS <<< "$GOOGLE_API_KEYS"
 MODELS=("gemini-3.5-pro" "gemini-3.5-flash" "gemma-4")
 
 for model in "${MODELS[@]}"; do
     for key in "${RAW_KEYS[@]}"; do
-        cat <<EOF >> "$CONFIG_FILE"
+        # We ensure no empty strings make their way into the config
+        if [ -n "$key" ]; then
+            cat <<EOF >> "$CONFIG_FILE"
   - model_name: $model
     litellm_params:
       model: gemini/$model
       api_key: "$key"
 EOF
+        fi
     done
 done
 
