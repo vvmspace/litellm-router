@@ -17,6 +17,88 @@ extract_keys() {
 
 echo "🎩 Good morning. Let us attend to your affairs with due diligence."
 
+# 0. Verifying the Docker apparatus.
+check_docker() {
+    if ! command -v docker &> /dev/null; then
+        echo "❌ The Docker apparatus appears to be absent from your establishment."
+        return 1
+    fi
+    if ! command -v docker compose &> /dev/null && ! docker compose version &> /dev/null 2>&1; then
+        echo "❌ The Docker Compose component is not at your disposal."
+        return 1
+    fi
+    return 0
+}
+
+install_docker() {
+    local OS=$(uname -s)
+    
+    case "$OS" in
+        Linux*)
+            echo "🐧 A Linux environment has been detected. Procuring Docker..."
+            if command -v apt-get &> /dev/null; then
+                sudo apt-get update
+                sudo apt-get install -y docker.io docker-compose
+                sudo systemctl start docker
+                sudo systemctl enable docker
+                sudo usermod -aG docker $USER
+                echo "✅ Docker has been successfully installed. Please log out and return for the group privileges to take effect."
+            elif command -v yum &> /dev/null; then
+                sudo yum install -y docker docker-compose
+                sudo systemctl start docker
+                sudo systemctl enable docker
+                sudo usermod -aG docker $USER
+                echo "✅ Docker has been successfully installed. Please log out and return for the group privileges to take effect."
+            else
+                echo "⚠️ This Linux distribution is not presently supported. Please procure Docker manually."
+                return 1
+            fi
+            ;;
+        Darwin*)
+            echo "🍎 A macOS environment has been detected."
+            if ! command -v brew &> /dev/null; then
+                echo "📦 Homebrew is not present in your establishment. Procuring Homebrew..."
+                /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+                if [ $? -ne 0 ]; then
+                    echo "❌ The Homebrew installation has encountered difficulties."
+                    return 1
+                fi
+                # Add Homebrew to PATH for current session
+                eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null)" || eval "$(/usr/local/bin/brew shellenv 2>/dev/null)"
+            fi
+            echo "📦 Procuring Docker through Homebrew..."
+            brew install --cask docker
+            echo "✅ Docker Desktop has been installed. Please launch it from your Applications folder."
+            ;;
+        MINGW*|MSYS*|CYGWIN*)
+            echo "🪟 A Windows environment has been detected."
+            echo "📖 Please procure Docker Desktop for Windows from:"
+            echo "   https://docs.docker.com/desktop/install/windows-install/"
+            return 1
+            ;;
+        *)
+            echo "⚠️ This operating system is not presently supported: $OS"
+            return 1
+            ;;
+    esac
+}
+
+if ! check_docker; then
+    read -p "🔧 Shall we procure Docker for your establishment? [y/N]: " INSTALL_DOCKER
+    if [[ "$INSTALL_DOCKER" =~ ^[Yy]$ ]]; then
+        install_docker
+        if [ $? -ne 0 ]; then
+            echo "❌ The Docker procurement has failed. Please install it manually and run this script again."
+            exit 1
+        fi
+        echo "⏳ Please await Docker's readiness, then run this script again."
+        exit 0
+    else
+        echo "❌ Docker is essential for our proceedings. Please install it manually and run this script again."
+        exit 1
+    fi
+fi
+
 # 1. Procuring the environment variables.
 if [ -f "$ENV_FILE" ]; then
     echo "📂 Found an existing .env file. Using it for our proceedings."
@@ -38,7 +120,7 @@ read -p "⚙️  Specify a port [Current/Default: $CURRENT_PORT]: " CUSTOM_PORT
 PORT=${CUSTOM_PORT:-$CURRENT_PORT}
 
 if grep -q '^PORT=' "$ENV_FILE"; then
-    sed -i "s/^PORT=.*/PORT=$PORT/" "$ENV_FILE"
+    sed -i '' "s/^PORT=.*/PORT=$PORT/" "$ENV_FILE"
 else
     echo "PORT=$PORT" >> "$ENV_FILE"
 fi
@@ -76,6 +158,7 @@ router_settings:
   routing_strategy: "least-busy"
   redis_host: "redis"
   redis_port: 6379
+  num_retries: 1
 
 model_list:
 EOF
@@ -85,18 +168,33 @@ echo "📝 Commissioning the $CONFIG_FILE..."
 # 4. Assembling the model list.
 # We set the Internal Field Separator (IFS) to a comma to properly read the array.
 IFS=',' read -ra RAW_KEYS <<< "$GOOGLE_API_KEYS"
-MODELS=("gemini-3.5-pro" "gemini-3.5-flash" "gemma-4")
+MODELS=("gemini-3.5-pro" "gemini-3.5-flash" "gemma-4-31b-it")
 
 for model in "${MODELS[@]}"; do
     for key in "${RAW_KEYS[@]}"; do
         # We ensure no empty strings make their way into the config
         if [ -n "$key" ]; then
-            cat <<EOF >> "$CONFIG_FILE"
+            # Add fallback for gemini models to gemma-4-31b-it
+            if [[ "$model" == gemini-* ]]; then
+                cat <<EOF >> "$CONFIG_FILE"
   - model_name: $model
     litellm_params:
       model: gemini/$model
       api_key: "$key"
+      fallbacks: ["gemma-4-31b-it"]
+    model_info:
+      aliases: ["$model-litellm"]
 EOF
+            else
+                cat <<EOF >> "$CONFIG_FILE"
+  - model_name: $model
+    litellm_params:
+      model: gemini/$model
+      api_key: "$key"
+    model_info:
+      aliases: ["$model-litellm"]
+EOF
+            fi
         fi
     done
 done

@@ -9,9 +9,15 @@ services:
     volumes:
       - redis-data:/data
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+        reservations:
+          memory: 100M
 
   litellm-router:
-    image: ghcr.io/berriai/litellm:main-latest
+    image: ghcr.io/berriai/litellm:latest
     container_name: litellm-router
     ports:
       - "${PORT:-7070}:8000"
