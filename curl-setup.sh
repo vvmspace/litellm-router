@@ -3,7 +3,7 @@
 set -e
 
 REPO_URL="https://github.com/vvmspace/litellm-router.git"
-REPO_NAME="litellm-router"
+REPO_NAME="${1:-litellm-router}"
 
 HOUR=$(date +%H)
 if [ $HOUR -ge 4 ] && [ $HOUR -lt 12 ]; then

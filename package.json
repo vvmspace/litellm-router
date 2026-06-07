@@ -1,0 +1,25 @@
+{
+  "name": "litellm-router-installer",
+  "version": "1.0.0",
+  "description": "A most gentlemanly installer for litellm-router",
+  "bin": {
+    "litellm-router-install": "./index.js"
+  },
+  "scripts": {
+    "postinstall": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vvmspace/litellm-router.git"
+  },
+  "keywords": [
+    "litellm",
+    "router",
+    "installer"
+  ],
+  "author": "vvm",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14"
+  }
+}
