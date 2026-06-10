@@ -40,3 +40,14 @@ uvx --from git+https://github.com/vvmspace/litellm-router.git litellm-router-ins
 
 Pray note that the npx and uvx installers are merely elegant wrappers that procure and execute the curl installer on your behalf. Any of these methods shall automatically procure the project and execute the setup script.
 
+## Configuration
+
+During the setup process, you shall be prompted to configure the following:
+
+- **Google API Keys**: Enter your Google API keys for Gemini models
+- **Port**: Specify the port for the service (default: 7070)
+- **Proxy**: Optionally configure a proxy for outbound requests (e.g., `http://proxy.example.com:8080`)
+- **Master Key**: Optionally set a master key to secure your proxy
+
+The proxy configuration, if provided, will be saved to the `.env` file as `HTTP_PROXY` and `HTTPS_PROXY` variables, which Docker Compose will automatically load.
+
