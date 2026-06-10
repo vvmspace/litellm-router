@@ -126,7 +126,26 @@ else
 fi
 echo "✅ Port $PORT has been secured in your .env file."
 
-# 3. Security and Redis configuration.
+# 3. Proxy configuration.
+read -p "🌐 Shall we configure a proxy for outbound requests? [y/N]: " USE_PROXY
+if [[ "$USE_PROXY" =~ ^[Yy]$ ]]; then
+    read -p "Enter your proxy URL (e.g., http://proxy.example.com:8080): " PROXY_URL
+    if [ -n "$PROXY_URL" ]; then
+        if grep -q '^HTTP_PROXY=' "$ENV_FILE"; then
+            sed -i '' "s/^HTTP_PROXY=.*/HTTP_PROXY=\"$PROXY_URL\"/" "$ENV_FILE"
+        else
+            echo "HTTP_PROXY=\"$PROXY_URL\"" >> "$ENV_FILE"
+        fi
+        if grep -q '^HTTPS_PROXY=' "$ENV_FILE"; then
+            sed -i '' "s/^HTTPS_PROXY=.*/HTTPS_PROXY=\"$PROXY_URL\"/" "$ENV_FILE"
+        else
+            echo "HTTPS_PROXY=\"$PROXY_URL\"" >> "$ENV_FILE"
+        fi
+        echo "✅ Proxy configuration has been secured in your .env file."
+    fi
+fi
+
+# 4. Security and Redis configuration.
 read -p "🔐 Shall we establish a Master Key to fortify your proxy? [y/N]: " SET_MASTER_KEY
 if [[ "$SET_MASTER_KEY" =~ ^[Yy]$ ]]; then
     read -p "Enter your secret key [Default: sk-vibe-super-secret-key]: " MASTER_KEY
